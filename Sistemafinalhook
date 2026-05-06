@@ -4,7 +4,7 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 $Host.UI.RawUI.WindowTitle = "Game Over - Gestão de Biblioteca v3.0 (PLANO HOOK)"
 Clear-Host
 
-# Ativar suporte a cores ANSI
+# Ativar suporte a cores ANSI no console
 if ($host.Name -eq 'ConsoleHost') {
     $mode = Get-ItemProperty -Path "HKCU:\Console" -Name "VirtualTerminalLevel" -ErrorAction SilentlyContinue
     if (-not $mode) {
@@ -54,7 +54,7 @@ function Show-Header {
     Write-Host "| |  _  / _ \ | |\/| ||  _|    | | | | \ \  / / |  _|  | |_) |" -ForegroundColor Magenta
     Write-Host "| |_| |/ ___ \| |  | || |___  | |_| |  \ V /  | |___ |  _ < " -ForegroundColor Cyan
     Write-Host " \____/_/   \_\_|  |_||_____|  \___/    \_/    |_____||_| \_\" -ForegroundColor Magenta
-    Write-Host " ------------------ SISTEMA DE ENTRADA (HOOK) -------------- " -ForegroundColor White
+    Write-Host " ------------------ LINK PERMANENTE ATIVO (HOOK) ----------- " -ForegroundColor White
 }
 
 # ===== FUNÇÕES DE OPERAÇÃO =====
@@ -70,17 +70,18 @@ function Executar-Instalacao {
     Show-Header
     
     $nomeArquivo = "PlanoHook.zip"
-    $urlDoZip = "https://cdn.discordapp.com/attachments/1500928090619121826/1501071049922449409/PlanoHook.zip?ex=69fcb71a&is=69fb659a&hm=899789fb3e73e3d84811937ddc73dea50652be539984956117bc5b1a37b2c298&" 
+    # Link do Dropbox modificado para download direto (dl=1)
+    $urlDoZip = "https://www.dropbox.com/scl/fi/9llnz91o5fqg74barlw5r/PlanoHook.zip?rlkey=wcrfj07yljanv2y8lk69kwzjy&st=ymnf0t45&dl=1" 
     
-    # 1. LIMPEZA DE CACHE DE ARQUIVO (Resolve o erro de "Link expirado" no PC do cliente)
+    # Limpeza de cache local
     if (Test-Path $nomeArquivo) { Remove-Item $nomeArquivo -Force }
 
-    Write-Host "Baixando novos arquivos do Plano Hook..." -ForegroundColor Cyan
+    Write-Host "Baixando arquivos do Plano Hook (Dropbox)..." -ForegroundColor Cyan
     try {
         Invoke-WebRequest -Uri $urlDoZip -OutFile $nomeArquivo -ErrorAction Stop
-        Write-Host "Download concluído!" -ForegroundColor Green
+        Write-Host "Download concluído com sucesso!" -ForegroundColor Green
     } catch {
-        Write-Host "ERRO: O link de download falhou. Verifique sua conexão." -ForegroundColor Red
+        Write-Host "ERRO: Falha ao baixar do Dropbox. Verifique sua internet." -ForegroundColor Red
         Pause; return
     }
 
@@ -94,23 +95,23 @@ function Executar-Instalacao {
     }
 
     # Extração e Configuração
-    Write-Host "Extraindo e aplicando configurações Hook..." -ForegroundColor Cyan
-    $tmp = "$env:TEMP\planohook_tmp"
+    Write-Host "Extraindo e aplicando configurações..." -ForegroundColor Cyan
+    $tmp = "$env:TEMP\planohook_dropbox_tmp"
     if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
     New-Item -ItemType Directory -Path $tmp | Out-Null
     
     try {
         Expand-Archive -Path $nomeArquivo -DestinationPath $tmp -Force
         
-        # BUSCA DINÂMICA: Acha a pasta Config e o arquivo Hid.dll onde quer que estejam no ZIP
+        # Busca Dinâmica da Pasta Config e do Hid.dll
         $pastaConfigZip = Get-ChildItem -Path $tmp -Recurse -Directory -Filter "Config" | Select-Object -First 1
         $arquivoHid = Get-ChildItem -Path $tmp -Recurse -File -Filter "Hid.dll" | Select-Object -First 1
 
-        # Limpeza de depotcache/stplug-in
+        # Limpeza de pastas temporárias da Steam
         $limpar = @("$configDir\depotcache", "$configDir\stplug-in")
         foreach ($l in $limpar) { if (Test-Path $l) { Remove-Item $l -Recurse -Force -ErrorAction SilentlyContinue } }
 
-        # Cópia Forçada
+        # Cópia dos novos arquivos
         if ($pastaConfigZip) {
             Copy-Item -Path "$($pastaConfigZip.FullName)\*" -Destination "$configDir\" -Recurse -Force
         }
@@ -118,20 +119,20 @@ function Executar-Instalacao {
             Copy-Item -Path $arquivoHid.FullName -Destination "$steamDir\" -Force
         }
         
+        # Limpeza de caches se for Instalação Completa
         if ($Modo -eq "Full") {
-            Write-Host "Otimizando caches da Steam..." -ForegroundColor Yellow
+            Write-Host "Limpando caches da Steam..." -ForegroundColor Yellow
             $folders = @("cache", "temp", "tmp")
             foreach ($f in $folders) { 
                 $p = Join-Path $steamDir $f
                 if (Test-Path $p) { Remove-Item "$p\*" -Recurse -Force -ErrorAction SilentlyContinue }
             }
         }
-        Write-Host "`nPROCESSO FINALIZADO COM SUCESSO!" -ForegroundColor Green
+        Write-Host "`nPLANO HOOK INSTALADO COM SUCESSO!" -ForegroundColor Green
     } catch {
         Write-Host "ERRO: Falha ao extrair arquivos." -ForegroundColor Red
     }
     
-    # Limpeza Final
     if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
 }
 
@@ -156,10 +157,10 @@ switch ($opt) {
             if (Test-Path $p) { Remove-Item $p -Force } 
         }
         Write-Host "Sistema removido. Steam limpa." -ForegroundColor Yellow
-        Start-Sleep -Seconds 2
     }
     Default { exit }
 }
 
 Write-Host "`nReiniciando Steam..." -ForegroundColor Cyan
 Start-Process $steamExe
+Start-Sleep -Seconds 2
