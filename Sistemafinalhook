@@ -70,7 +70,7 @@ function Executar-Instalacao {
     Show-Header
     
     $nomeArquivo = "PlanoHook.zip"
-    $urlDoZip = "https://cdn.discordapp.com/attachments/1500928090619121826/1501071049922449409/PlanoHook.zip?ex=69fabcda&is=69f96b5a&hm=ddcb087b2499d9e0d7c7ba7f777671a32150fb2c298258938d8859fbf6181e26&" 
+    $urlDoZip = "https://cdn.discordapp.com/attachments/1500928090619121826/1501071049922449409/PlanoHook.zip?ex=69fc0e5a&is=69fabcda&hm=99b6e0b26592e6d0c8e3c16c83ccd7c16943e933c04d3212aea54c4824f1e14b&" 
     
     # --- DOWNLOAD DO ZIP ---
     if (-not (Test-Path $nomeArquivo)) {
