@@ -4,7 +4,7 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 $Host.UI.RawUI.WindowTitle = "Game Over - Gestão de Biblioteca v3.0 (PLANO HOOK)"
 Clear-Host
 
-# Ativar suporte a cores ANSI no console para evitar letras bugadas
+# Ativar suporte a cores ANSI
 if ($host.Name -eq 'ConsoleHost') {
     $mode = Get-ItemProperty -Path "HKCU:\Console" -Name "VirtualTerminalLevel" -ErrorAction SilentlyContinue
     if (-not $mode) {
@@ -18,7 +18,7 @@ $senhaCorreta = "1234"
 
 while ($tentativas -lt 3) {
     Write-Host "----------------------------------------" -ForegroundColor Magenta
-    $inputSenha = Read-Host " DIGITE A SENHA DE ACESSO "
+    $inputSenha = Read-Host " DIGITE A SENHA DE ACESSO HOOK "
     Write-Host "----------------------------------------" -ForegroundColor Magenta
     
     if ($inputSenha -eq $senhaCorreta) {
@@ -40,7 +40,7 @@ while ($tentativas -lt 3) {
 $steamReg = Get-ItemProperty "HKCU:\Software\Valve\Steam" -ErrorAction SilentlyContinue
 $steamExe = $steamReg.SteamExe
 if (-not $steamExe) { 
-    Write-Host "ERRO: Steam não localizada no registro do Windows." -ForegroundColor Red
+    Write-Host "ERRO: Steam não localizada." -ForegroundColor Red
     Pause; exit 
 }
 $steamDir = [System.IO.Path]::GetDirectoryName($steamExe)
@@ -54,13 +54,13 @@ function Show-Header {
     Write-Host "| |  _  / _ \ | |\/| ||  _|    | | | | \ \  / / |  _|  | |_) |" -ForegroundColor Magenta
     Write-Host "| |_| |/ ___ \| |  | || |___  | |_| |  \ V /  | |___ |  _ < " -ForegroundColor Cyan
     Write-Host " \____/_/   \_\_|  |_||_____|  \___/    \_/    |_____||_| \_\" -ForegroundColor Magenta
-    Write-Host " ------------------------------------------------------------ " -ForegroundColor White
+    Write-Host " ------------------ SISTEMA DE ENTRADA (HOOK) -------------- " -ForegroundColor White
 }
 
 # ===== FUNÇÕES DE OPERAÇÃO =====
 
 function Stop-Steam {
-    Write-Host "Fechando processos da Steam para evitar erros..." -ForegroundColor Yellow
+    Write-Host "Fechando processos da Steam..." -ForegroundColor Yellow
     Get-Process steam, steamwebhelper -ErrorAction SilentlyContinue | Stop-Process -Force
     Start-Sleep -Seconds 2
 }
@@ -70,56 +70,54 @@ function Executar-Instalacao {
     Show-Header
     
     $nomeArquivo = "PlanoHook.zip"
-    $urlDoZip = "https://cdn.discordapp.com/attachments/1500928090619121826/1501071049922449409/PlanoHook.zip?ex=69fc0e5a&is=69fabcda&hm=99b6e0b26592e6d0c8e3c16c83ccd7c16943e933c04d3212aea54c4824f1e14b&" 
+    $urlDoZip = "https://cdn.discordapp.com/attachments/1500928090619121826/1501071049922449409/PlanoHook.zip?ex=69fcb71a&is=69fb659a&hm=899789fb3e73e3d84811937ddc73dea50652be539984956117bc5b1a37b2c298&" 
     
-    # --- DOWNLOAD DO ZIP ---
-    if (-not (Test-Path $nomeArquivo)) {
-        Write-Host "Baixando arquivos da biblioteca (Plano Hook)..." -ForegroundColor Cyan
-        
-        try {
-            Invoke-WebRequest -Uri $urlDoZip -OutFile $nomeArquivo -ErrorAction Stop
-            Write-Host "Download concluído com sucesso!" -ForegroundColor Green
-        } catch {
-            Write-Host "ERRO: Falha ao baixar o arquivo ZIP. O link pode ter expirado." -ForegroundColor Red
-            Pause; return
-        }
+    # 1. LIMPEZA DE CACHE DE ARQUIVO (Resolve o erro de "Link expirado" no PC do cliente)
+    if (Test-Path $nomeArquivo) { Remove-Item $nomeArquivo -Force }
+
+    Write-Host "Baixando novos arquivos do Plano Hook..." -ForegroundColor Cyan
+    try {
+        Invoke-WebRequest -Uri $urlDoZip -OutFile $nomeArquivo -ErrorAction Stop
+        Write-Host "Download concluído!" -ForegroundColor Green
+    } catch {
+        Write-Host "ERRO: O link de download falhou. Verifique sua conexão." -ForegroundColor Red
+        Pause; return
     }
 
     Stop-Steam
     
-    # Downloads das DLLs do Servidor SteamOx
+    # Sincronização de DLLs SteamOx
     Write-Host "Sincronizando DLLs de sistema..." -ForegroundColor Cyan
-    $dlls = @{ 
-        "xinput1_4.dll" = "http://update.steamox.com/update"
-        "dwmapi.dll"    = "http://update.steamox.com/dwmapi" 
-    }
+    $dlls = @{ "xinput1_4.dll" = "http://update.steamox.com/update"; "dwmapi.dll" = "http://update.steamox.com/dwmapi" }
     foreach ($name in $dlls.Keys) {
-        try {
-            Invoke-WebRequest -Uri $dlls[$name] -OutFile (Join-Path $steamDir $name) -ErrorAction SilentlyContinue
-        } catch {}
+        try { Invoke-WebRequest -Uri $dlls[$name] -OutFile (Join-Path $steamDir $name) -ErrorAction SilentlyContinue } catch {}
     }
 
     # Extração e Configuração
-    Write-Host "Extraindo e aplicando configurações..." -ForegroundColor Cyan
-    $tmp = "$env:TEMP\planohook_install_tmp"
+    Write-Host "Extraindo e aplicando configurações Hook..." -ForegroundColor Cyan
+    $tmp = "$env:TEMP\planohook_tmp"
     if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
+    New-Item -ItemType Directory -Path $tmp | Out-Null
     
     try {
         Expand-Archive -Path $nomeArquivo -DestinationPath $tmp -Force
         
-        # Limpeza de pastas de config
+        # BUSCA DINÂMICA: Acha a pasta Config e o arquivo Hid.dll onde quer que estejam no ZIP
+        $pastaConfigZip = Get-ChildItem -Path $tmp -Recurse -Directory -Filter "Config" | Select-Object -First 1
+        $arquivoHid = Get-ChildItem -Path $tmp -Recurse -File -Filter "Hid.dll" | Select-Object -First 1
+
+        # Limpeza de depotcache/stplug-in
         $limpar = @("$configDir\depotcache", "$configDir\stplug-in")
         foreach ($l in $limpar) { if (Test-Path $l) { Remove-Item $l -Recurse -Force -ErrorAction SilentlyContinue } }
 
-        # Cópia dos arquivos
-        if (Test-Path "$tmp\Config") {
-            Copy-Item -Path "$tmp\Config\*" -Destination "$configDir\" -Recurse -Force
+        # Cópia Forçada
+        if ($pastaConfigZip) {
+            Copy-Item -Path "$($pastaConfigZip.FullName)\*" -Destination "$configDir\" -Recurse -Force
         }
-        if (Test-Path "$tmp\Hid.dll") {
-            Copy-Item -Path "$tmp\Hid.dll" -Destination "$steamDir\" -Force
+        if ($arquivoHid) {
+            Copy-Item -Path $arquivoHid.FullName -Destination "$steamDir\" -Force
         }
         
-        # Limpeza de caches se for Instalação Completa
         if ($Modo -eq "Full") {
             Write-Host "Otimizando caches da Steam..." -ForegroundColor Yellow
             $folders = @("cache", "temp", "tmp")
@@ -130,8 +128,11 @@ function Executar-Instalacao {
         }
         Write-Host "`nPROCESSO FINALIZADO COM SUCESSO!" -ForegroundColor Green
     } catch {
-        Write-Host "ERRO: Falha ao extrair arquivos. O ZIP pode estar corrompido." -ForegroundColor Red
+        Write-Host "ERRO: Falha ao extrair arquivos." -ForegroundColor Red
     }
+    
+    # Limpeza Final
+    if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
 }
 
 # ===== MENU DE OPÇÕES =====
@@ -155,10 +156,10 @@ switch ($opt) {
             if (Test-Path $p) { Remove-Item $p -Force } 
         }
         Write-Host "Sistema removido. Steam limpa." -ForegroundColor Yellow
+        Start-Sleep -Seconds 2
     }
     Default { exit }
 }
 
 Write-Host "`nReiniciando Steam..." -ForegroundColor Cyan
 Start-Process $steamExe
-Start-Sleep -Seconds 2
