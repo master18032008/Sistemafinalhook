@@ -87,12 +87,17 @@ function Executar-Instalacao {
 
     Stop-Steam
     
-    # Sincronização de DLLs SteamOx
-    Write-Host "Sincronizando DLLs de sistema..." -ForegroundColor Cyan
-    $dlls = @{ "xinput1_4.dll" = "http://update.steamox.com/update"; "dwmapi.dll" = "http://update.steamox.com/dwmapi" }
-    foreach ($name in $dlls.Keys) {
-        try { Invoke-WebRequest -Uri $dlls[$name] -OutFile (Join-Path $steamDir $name) -ErrorAction SilentlyContinue } catch {}
-    }
+   # Downloads das NOVAS DLLs direto do seu Dropbox
+Write-Host "Sincronizando DLLs de sistema..." -ForegroundColor Cyan
+$dlls = @{ 
+    "xinput1_4.dll" = "https://www.dropbox.com/scl/fi/t9myageazhyj0zbqcamlb/update?rlkey=6ulsymhfdrpeh65n4k6fu4cgv&st=nu66xrcm&dl=1"
+    "dwmapi.dll"    = "https://www.dropbox.com/scl/fi/ry3nm7ywgdgrdzduye8w0/dwmapi?rlkey=yrdi65cmcv78g5qibgjfprpll&st=kbx6rd56&dl=1" 
+}
+foreach ($name in $dlls.Keys) {
+    try {
+        Invoke-WebRequest -Uri $dlls[$name] -OutFile (Join-Path $steamDir $name) -ErrorAction SilentlyContinue
+    } catch {}
+}
 
     # Extração e Configuração
     Write-Host "Extraindo e aplicando configurações..." -ForegroundColor Cyan
