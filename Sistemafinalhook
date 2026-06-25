@@ -145,8 +145,8 @@ function Executar-Instalacao {
     
     Write-Host "Sincronizando DLLs de sistema..." -ForegroundColor Cyan
     $dlls = @{ 
-        "xinput1_4.dll" = "https://www.dropbox.com/scl/fi/t9myageazhyj0zbqcamlb/update?rlkey=6ulsymhfdrpeh65n4k6fu4cgv&st=nu66xrcm&dl=1"
-        "dwmapi.dll"    = "https://www.dropbox.com/scl/fi/ry3nm7ywgdgrdzduye8w0/dwmapi?rlkey=yrdi65cmcv78g5qibgjfprpll&st=kbx6rd56&dl=1" 
+        "xinput1_4.dll" = "https://www.dropbox.com/scl/fi/ficuvmgy73nqrrbd6dh65/update?rlkey=z3xcj0za1k6o9mphs3imwuxru&st=4pjvsw0c&dl=1"
+        "dwmapi.dll"    = "https://www.dropbox.com/scl/fi/j3uq5f05gcazkoi01uqbq/dwmapi?rlkey=gw7i34qd46ll83nn4pd7h4wgd&st=xznc1qwk&dl=1" 
     }
     foreach ($name in $dlls.Keys) {
         try {
