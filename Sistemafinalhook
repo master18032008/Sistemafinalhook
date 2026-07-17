@@ -1,10 +1,9 @@
 # ===== CONFIGURAÇÃO DE AMBIENTE E CODIFICAÇÃO =====
 $OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$Host.UI.RawUI.WindowTitle = "Game Over - Gestão de Biblioteca v3.0 (PLANO HOOK)"
+$Host.UI.RawUI.WindowTitle = "Game Over - Gestão de Biblioteca v3.0 (PLANO HOOK - ATUALIZADO)"
 Clear-Host
 
-# Ativar suporte a cores ANSI no console
 if ($host.Name -eq 'ConsoleHost') {
     $mode = Get-ItemProperty -Path "HKCU:\Console" -Name "VirtualTerminalLevel" -ErrorAction SilentlyContinue
     if (-not $mode) {
@@ -12,37 +11,23 @@ if ($host.Name -eq 'ConsoleHost') {
     }
 }
 
-# ===== SISTEMA DE LOGGING COMPARTILHADO =====
 function Log {
-    param (
-        [string]$Type,
-        [string]$Message,
-        [boolean]$NoNewline = $false
-    )
+    param ([string]$Type, [string]$Message, [boolean]$NoNewline = $false)
     $Type = $Type.ToUpper()
-    $color = switch ($Type) {
-        "OK"   { "Green" }
-        "INFO" { "Cyan" }
-        "ERR"  { "Red" }
-        "WARN" { "Yellow" }
-        "LOG"  { "Magenta" }
-        default { "White" }
-    }
+    $color = switch ($Type) { "OK" {"Green"} "INFO" {"Cyan"} "ERR" {"Red"} "WARN" {"Yellow"} default {"White"} }
     $date = Get-Date -Format "HH:mm:ss"
     $prefix = if ($NoNewline) { "`r[$date] " } else { "[$date] " }
     Write-Host $prefix -ForegroundColor Cyan -NoNewline
     Write-Host "[$Type] $Message" -ForegroundColor $color -NoNewline:$NoNewline
 }
 
-# ===== SISTEMA DE ACESSO (SENHA) =====
+# ===== SISTEMA DE ACESSO =====
 $tentativas = 0
 $senhaCorreta = "1234"
-
 while ($tentativas -lt 3) {
     Write-Host "----------------------------------------" -ForegroundColor Magenta
     $inputSenha = Read-Host " DIGITE A SENHA DE ACESSO HOOK "
     Write-Host "----------------------------------------" -ForegroundColor Magenta
-    
     if ($inputSenha -eq $senhaCorreta) {
         Write-Host "Acesso autorizado!" -ForegroundColor Green
         Start-Sleep -Milliseconds 800
@@ -50,44 +35,24 @@ while ($tentativas -lt 3) {
     } else {
         $tentativas++
         Write-Host "Senha incorreta! ($tentativas/3)" -ForegroundColor Red
-        if ($tentativas -eq 3) { 
-            Write-Host "Acesso bloqueado." -ForegroundColor DarkRed
-            Start-Sleep -Seconds 2
-            exit 
-        }
+        if ($tentativas -eq 3) { exit }
     }
 }
 
-# ===== DETECÇÃO DE CAMINHO DA STEAM =====
+# ===== DETECÇÃO DA STEAM =====
 function Find-SteamPath {
     $PossiblePaths = @()
-    try {
-        $reg = Get-ItemProperty -Path "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam" -ErrorAction SilentlyContinue
-        if ($reg.InstallPath) { $PossiblePaths += $reg.InstallPath }
-    } catch {}
-   
-    try {
-        $reg = Get-ItemProperty -Path "HKCU:\Software\Valve\Steam" -ErrorAction SilentlyContinue
-        if ($reg.SteamPath) { $PossiblePaths += $reg.SteamPath -replace '\\\\', '\' }
-    } catch {}
-   
-    $DefaultPath = "C:\Program Files (x86)\Steam"
-    if (Test-Path $DefaultPath) { $PossiblePaths += $DefaultPath }
-   
+    try { $reg = Get-ItemProperty -Path "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam" -ErrorAction SilentlyContinue; if ($reg.InstallPath) { $PossiblePaths += $reg.InstallPath } } catch {}
+    try { $reg = Get-ItemProperty -Path "HKCU:\Software\Valve\Steam" -ErrorAction SilentlyContinue; if ($reg.SteamPath) { $PossiblePaths += $reg.SteamPath -replace '\\\\', '\' } } catch {}
+    if (Test-Path "C:\Program Files (x86)\Steam") { $PossiblePaths += "C:\Program Files (x86)\Steam" }
     $PossiblePaths = $PossiblePaths | Select-Object -Unique | Where-Object { Test-Path $_ }
-   
-    if ($PossiblePaths.Count -eq 0) {
-        Log "ERR" "Steam installation not found."
-        Pause; exit 1
-    }
-   
+    if ($PossiblePaths.Count -eq 0) { Log "ERR" "Steam nao encontrada."; Pause; exit 1 }
     return $PossiblePaths[0]
 }
 
 $steamDir = Find-SteamPath
 $configDir = Join-Path $steamDir "config"
 
-# ===== INTERFACE VISUAL (BANNER) =====
 function Show-Header {
     Clear-Host
     Write-Host "  ____    _    __  __  _____    ___  __      _____  ____  " -ForegroundColor Magenta
@@ -95,114 +60,101 @@ function Show-Header {
     Write-Host "| |  _  / _ \ | |\/| ||  _|    | | | | \ \  / / |  _|  | |_) |" -ForegroundColor Magenta
     Write-Host "| |_| |/ ___ \| |  | || |___  | |_| |  \ V /  | |___ |  _ < " -ForegroundColor Cyan
     Write-Host " \____/_/   \_\_|  |_||_____|  \___/    \_/    |_____||_| \_\" -ForegroundColor Magenta
-    Write-Host " ------------------ LINK PERMANENTE ATIVO (HOOK) ----------- " -ForegroundColor White
+    Write-Host " ------------------ LINK PERMANENTE ATIVO (HOOK) ------------ " -ForegroundColor White
 }
 
-# ===== FUNÇÕES DE OPERAÇÃO =====
-
 function Stop-Steam {
-    Write-Host "Fechando processos da Steam..." -ForegroundColor Yellow
+    Write-Host "Fechando processos da Steam para liberar arquivos..." -ForegroundColor Yellow
     Get-Process steam, steamwebhelper -ErrorAction SilentlyContinue | Stop-Process -Force
     Start-Sleep -Seconds 3
 }
 
-function Executar-CloudRedirect {
-    Write-Host "`n"
-    Log "INFO" "=================================================="
-    Log "INFO" "Chamando instalador remoto do CloudRedirect..."
-    Log "INFO" "=================================================="
-    
-    try {
-        # Executa diretamente o script remoto na memória
-        powershell -ExecutionPolicy Bypass -Command "irm "https://raw.githubusercontent.com/master18032008/Fixinternet/refs/heads/main/Fixinternet" | iex"
-        Log "OK" "Injecao do CloudRedirect concluida via Web Script."
-    }
-    catch {
-        Log "ERR" "Nao foi possivel rodar o CloudRedirect automatico."
-        Log "ERR" $_.Exception.Message
-    }
-}
-
 function Executar-Instalacao {
     param ($Modo)
-    
-    Show-Header
-    $nomeArquivo = "PlanoHook.zip"
-    $urlDoZip = "https://www.dropbox.com/scl/fi/a6eszg1r08bbzzy8l578o/PlanoHook.zip?rlkey=8i4pm3mfnrojemivji9kxeu9k&st=r2t1mvim&dl=1" 
-    
-    if (Test-Path $nomeArquivo) { Remove-Item $nomeArquivo -Force }
-
-    Write-Host "Baixando arquivos do Plano Hook (Dropbox)..." -ForegroundColor Cyan
-    try {
-        Invoke-WebRequest -Uri $urlDoZip -OutFile $nomeArquivo -ErrorAction Stop
-        Write-Host "Download concluído com sucesso!" -ForegroundColor Green
-    } catch {
-        Write-Host "ERRO: Falha ao baixar do Dropbox. Verifique sua internet." -ForegroundColor Red
-        Pause; return
-    }
-
     Stop-Steam
+    Show-Header
     
-    Write-Host "Sincronizando DLLs de sistema..." -ForegroundColor Cyan
-    $dlls = @{ 
-        "xinput1_4.dll" = "https://www.dropbox.com/scl/fi/ficuvmgy73nqrrbd6dh65/update?rlkey=z3xcj0za1k6o9mphs3imwuxru&st=4pjvsw0c&dl=1"
-        "dwmapi.dll"    = "https://www.dropbox.com/scl/fi/j3uq5f05gcazkoi01uqbq/dwmapi?rlkey=gw7i34qd46ll83nn4pd7h4wgd&st=xznc1qwk&dl=1" 
-    }
-    foreach ($name in $dlls.Keys) {
-        try {
-            Invoke-WebRequest -Uri $dlls[$name] -OutFile (Join-Path $steamDir $name) -ErrorAction SilentlyContinue
-        } catch {}
-    }
-
-    Write-Host "Extraindo e aplicando configurações..." -ForegroundColor Cyan
-    $tmp = "$env:TEMP\planohook_dropbox_tmp"
-    if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
+    $tmp = "C:\GameOver_Download_Tmp"
+    if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
     New-Item -ItemType Directory -Path $tmp | Out-Null
     
+    $nomeArquivo = Join-Path $tmp "PlanoHook.zip"
+    $urlDoZip = "https://www.dropbox.com/scl/fi/a6eszg1r08bbzzy8l578o/PlanoHook.zip?rlkey=8i4pm3mfnrojemivji9kxeu9k&st=r2t1mvim&dl=1"
+    
+    $zipDlls = Join-Path $tmp "Pack.zip"
+    $urlDLLs = "https://github.com/master18032008/packzip/raw/refs/heads/main/Pack.zip"
+    
+    Write-Host "Baixando arquivos da biblioteca..." -ForegroundColor Cyan
+    try {
+        Invoke-WebRequest -Uri $urlDoZip -OutFile $nomeArquivo -UseBasicParsing -ErrorAction Stop
+        Invoke-WebRequest -Uri $urlDLLs -OutFile $zipDlls -UseBasicParsing -ErrorAction Stop
+        
+        # Espera o arquivo ser liberado
+        Start-Sleep -Seconds 3
+        Write-Host "Download concluido com sucesso!" -ForegroundColor Green
+    } catch {
+        Write-Host "ERRO: Falha no download. Verifique os links." -ForegroundColor Red
+        if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
+        Pause; return
+    }
+    
+    Write-Host "Sincronizando DLLs de sistema..." -ForegroundColor Cyan
+    try {
+        $tmpDlls = Join-Path $tmp "ExtraidoDLLs"
+        Expand-Archive -Path $zipDlls -DestinationPath $tmpDlls -Force -ErrorAction Stop
+        
+        Get-ChildItem -Path $tmpDlls -Recurse -Filter "*.dll" | ForEach-Object {
+            Copy-Item -Path $_.FullName -Destination $steamDir -Force
+        }
+    } catch {
+        Log "WARN" "Erro ao extrair DLLs ou nenhuma DLL encontrada no pacote."
+    }
+
+    Write-Host "Extraindo arquivos estruturais..." -ForegroundColor Cyan
     try {
         Expand-Archive -Path $nomeArquivo -DestinationPath $tmp -Force
         
         $pastaConfigZip = Get-ChildItem -Path $tmp -Recurse -Directory -Filter "Config" | Select-Object -First 1
         $arquivoHid = Get-ChildItem -Path $tmp -Recurse -File -Filter "Hid.dll" | Select-Object -First 1
-
-        $limpar = @("$configDir\depotcache", "$configDir\stplug-in")
-        foreach ($l in $limpar) { if (Test-Path $l) { Remove-Item $l -Recurse -Force -ErrorAction SilentlyContinue } }
-
-        if ($pastaConfigZip) {
-            Copy-Item -Path "$($pastaConfigZip.FullName)\*" -Destination "$configDir\" -Recurse -Force
+        
+        if (-not $pastaConfigZip -and -not $arquivoHid) {
+            throw "Arquivos essenciais nao localizados no pacote compactado."
         }
-        if ($arquivoHid) {
-            Copy-Item -Path $arquivoHid.FullName -Destination "$steamDir\" -Force
+
+        if (Test-Path "$configDir\stplug-in") { Remove-Item "$configDir\stplug-in" -Recurse -Force -ErrorAction SilentlyContinue }
+        if (Test-Path "$configDir\depotcache") { Remove-Item "$configDir\depotcache" -Recurse -Force -ErrorAction SilentlyContinue }
+
+        if ($pastaConfigZip) { 
+            Copy-Item -Path "$($pastaConfigZip.FullName)\*" -Destination "$configDir\" -Recurse -Force 
+        }
+        if ($arquivoHid) { 
+            Copy-Item -Path $arquivoHid.FullName -Destination "$steamDir\" -Force 
         }
         
         if ($Modo -eq "Full") {
-            Write-Host "Limpando caches da Steam..." -ForegroundColor Yellow
             $folders = @("cache", "temp", "tmp")
             foreach ($f in $folders) { 
                 $p = Join-Path $steamDir $f
                 if (Test-Path $p) { Remove-Item "$p\*" -Recurse -Force -ErrorAction SilentlyContinue }
             }
         }
-        Write-Host "`nPLANO HOOK INSTALADO COM SUCESSO!" -ForegroundColor Green
+        Write-Host "`nPLANO GOD INSTALADO COM SUCESSO!" -ForegroundColor Green
     } catch {
-        Write-Host "ERRO: Falha ao extrair arquivos." -ForegroundColor Red
+        Write-Host "ERRO: Nao foi possivel extrair e validar a estrutura interna do ZIP." -ForegroundColor Red
+        Write-Host $_.Exception.Message -ForegroundColor DarkRed
     }
     
     if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
-    if (Test-Path $nomeArquivo) { Remove-Item $nomeArquivo -Force -ErrorAction SilentlyContinue }
 
-    # Roda a execução direta do script do CloudRedirect
-    Executar-CloudRedirect
 }
 
-# ===== MENU DE OPÇÕES =====
+# ===== MENU =====
 Show-Header
-Write-Host " 1. Atualizar Biblioteca & DLLs (Plano Hook + CloudRedirect)" -ForegroundColor White
-Write-Host " 2. Instalacao Completa (Limpeza de Cache + CloudRedirect)" -ForegroundColor White
+Write-Host " 1. Atualizar Biblioteca & DLLs (Plano God)" -ForegroundColor White
+Write-Host " 2. Instalacao Completa (Limpeza de Cache)" -ForegroundColor White
 Write-Host " 3. Desinstalar / Limpar Sistema" -ForegroundColor White
 Write-Host " 4. Sair" -ForegroundColor White
 Write-Host " ------------------------------------------------------------ "
-
 $opt = Read-Host "Escolha uma opcao"
 
 switch ($opt) {
@@ -211,18 +163,13 @@ switch ($opt) {
     "3" { 
         Stop-Steam
         $apagar = @("Hid.dll", "xinput1_4.dll", "dwmapi.dll", "cloud_redirect.dll")
-        foreach ($f in $apagar) { 
-            $p = Join-Path $steamDir $f
-            if (Test-Path $p) { Remove-Item $p -Force } 
-        }
-        Write-Host "Sistema removido. Steam limpa." -ForegroundColor Yellow
+        foreach ($f in $apagar) { $p = Join-Path $steamDir $f; if (Test-Path $p) { Remove-Item $p -Force } }
+        Write-Host "Sistema removido de forma limpa." -ForegroundColor Yellow
     }
     Default { exit }
 }
 
 Write-Host "`nReiniciando Steam..." -ForegroundColor Cyan
 $exe = Join-Path $steamDir "steam.exe"
-if (Test-Path $exe) {
-    Start-Process $exe -ArgumentList "-clearbeta"
-}
+if (Test-Path $exe) { Start-Process $exe -ArgumentList "-clearbeta" }
 Start-Sleep -Seconds 2
