@@ -150,7 +150,7 @@ function Executar-Instalacao {
 
 # ===== MENU =====
 Show-Header
-Write-Host " 1. Atualizar Biblioteca & DLLs (Plano God)" -ForegroundColor White
+Write-Host " 1. Atualizar Biblioteca & DLLs (Plano HOOK)" -ForegroundColor White
 Write-Host " 2. Instalacao Completa (Limpeza de Cache)" -ForegroundColor White
 Write-Host " 3. Desinstalar / Limpar Sistema" -ForegroundColor White
 Write-Host " 4. Sair" -ForegroundColor White
