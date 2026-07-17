@@ -55,7 +55,7 @@ $configDir = Join-Path $steamDir "config"
 
 function Show-Header {
     Clear-Host
-    Write-Host "  ____    _    __  __  _____    ___  __      _____  ____  " -ForegroundColor Magenta
+    Write-Host "  ____    _    __  __  _____   ___  __     _____  ____  " -ForegroundColor Magenta
     Write-Host " / ___|  / \  |  \/  || ____|  / _ \ \ \    / /| ____||  _ \ " -ForegroundColor Cyan
     Write-Host "| |  _  / _ \ | |\/| ||  _|    | | | | \ \  / / |  _|  | |_) |" -ForegroundColor Magenta
     Write-Host "| |_| |/ ___ \| |  | || |___  | |_| |  \ V /  | |___ |  _ < " -ForegroundColor Cyan
@@ -124,9 +124,20 @@ function Executar-Instalacao {
         if (Test-Path "$configDir\stplug-in") { Remove-Item "$configDir\stplug-in" -Recurse -Force -ErrorAction SilentlyContinue }
         if (Test-Path "$configDir\depotcache") { Remove-Item "$configDir\depotcache" -Recurse -Force -ErrorAction SilentlyContinue }
 
+        # --- ALTERAÇÃO 1: Criação da pasta "lua" dentro do diretório config da Steam ---
+        $pastaLua = Join-Path $configDir "lua"
+        if (-not (Test-Path $pastaLua)) { New-Item -ItemType Directory -Path $pastaLua -Force | Out-Null }
+
         if ($pastaConfigZip) { 
             Copy-Item -Path "$($pastaConfigZip.FullName)\*" -Destination "$configDir\" -Recurse -Force 
         }
+
+        # --- ALTERAÇÃO 2: Copiar conteúdo de dentro da pasta stplug-in para a pasta lua criada acima ---
+        $pastaStPlugInZip = Get-ChildItem -Path $tmp -Recurse -Directory -Filter "stplug-in" | Select-Object -First 1
+        if ($pastaStPlugInZip) {
+            Copy-Item -Path "$($pastaStPlugInZip.FullName)\*" -Destination "$pastaLua\" -Recurse -Force
+        }
+
         if ($arquivoHid) { 
             Copy-Item -Path $arquivoHid.FullName -Destination "$steamDir\" -Force 
         }
@@ -150,7 +161,7 @@ function Executar-Instalacao {
 
 # ===== MENU =====
 Show-Header
-Write-Host " 1. Atualizar Biblioteca & DLLs (Plano HOOK)" -ForegroundColor White
+Write-Host " 1. Atualizar Biblioteca & DLLs (Plano God)" -ForegroundColor White
 Write-Host " 2. Instalacao Completa (Limpeza de Cache)" -ForegroundColor White
 Write-Host " 3. Desinstalar / Limpar Sistema" -ForegroundColor White
 Write-Host " 4. Sair" -ForegroundColor White
